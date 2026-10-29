@@ -1,7 +1,7 @@
 
 import os
-import time
 import sqlite3
+import uuid
 from typing import Annotated, TypedDict
 
 from dotenv import load_dotenv
@@ -76,66 +76,30 @@ def chat(state: State):
 
 
 # --------------------------------------------------
-# 6. Waiting node with a simulated failure
-# --------------------------------------------------
-
-# TEST ONLY: This variable resets whenever Python restarts.
-waiting_attempts = 0
-
-
-def waiting_node(state: State):
-    global waiting_attempts
-    waiting_attempts += 1
-
-    print(f"\n[WAIT] Attempt {waiting_attempts}")
-
-    # Simulate a temporary failure on the first attempt.
-    if waiting_attempts == 1:
-        print("[WAIT] Simulating a temporary failure...")
-        raise RuntimeError("Simulated temporary failure")
-
-    print("[WAIT] Waiting for 10 seconds...")
-    time.sleep(10)
-
-    print("[WAIT] Node completed successfully")
-
-    return {
-        "status": "completed",
-    }
-
-
-# --------------------------------------------------
-# 7. Build the graph and configure retries
+# 6. Build the graph and configure retries
 # --------------------------------------------------
 
 builder = StateGraph(State)
 
-builder.add_node("chat", chat)
-
 builder.add_node(
-    "waiting_node",
-    waiting_node,
+    "chat",
+    chat,
     retry_policy=RetryPolicy(max_attempts=3),
 )
 
 builder.add_edge(START, "chat")
-builder.add_edge("chat", "waiting_node")
-builder.add_edge("waiting_node", END)
+builder.add_edge("chat", END)
 
 workflow = builder.compile(checkpointer=checkpointer)
 
-print(workflow.get_graph().draw_mermaid())
 
 # --------------------------------------------------
-# 8. Interactive terminal chat
+# 7. Interactive terminal chat
 # --------------------------------------------------
 
 def main():
-    thread_id = input("Thread ID (e.g. retry_test_1): ").strip()
-
-    if not thread_id:
-        print("Thread ID cannot be empty.")
-        return
+    thread_id = str(uuid.uuid4())
+    print(f"Thread ID: {thread_id}")
 
     config = {
         "configurable": {
@@ -169,9 +133,9 @@ def main():
             ):
                 # Only print actual text chunks
                 if message_chunk.content:
-                        print(message_chunk.content, end="", flush=True)
+                    print(message_chunk.content, end="", flush=True)
 
-                print("\n")
+            print("\n")
 
         except Exception as error:
             print(f"\n[GRAPH ERROR] {type(error).__name__}: {error}")
@@ -180,7 +144,7 @@ def main():
 
 
 # --------------------------------------------------
-# 9. Start the application and close SQLite safely
+# 8. Start the application and close SQLite safely
 # --------------------------------------------------
 
 if __name__ == "__main__":

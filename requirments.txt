@@ -5,3 +5,4 @@ langchain_core
 langchain-openrouter
 langgraph_prebuilt
 langgraph-checkpoint-sqlite
+streamlit
